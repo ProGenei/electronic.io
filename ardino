@@ -1,114 +1,26 @@
-#include <util/atomic.h> // For the ATOMIC_BLOCK macro
-
-#define ENCA 2 // YELLOW
-#define ENCB 3 // WHITE
-#define PWM 5
-#define IN2 6
-#define IN1 7
-
-volatile int posi = 0; // specify posi as volatile: https://www.arduino.cc/reference/en/language/variables/variable-scope-qualifiers/volatile/
-long prevT = 0;
-float eprev = 0;
-float eintegral = 0;
-
-void setup() {
-  Serial.begin(9600);
-  pinMode(ENCA,INPUT);
-  pinMode(ENCB,INPUT);
-  attachInterrupt(digitalPinToInterrupt(ENCA),readEncoder,RISING);
-  
-  pinMode(PWM,OUTPUT);
-  pinMode(IN1,OUTPUT);
-  pinMode(IN2,OUTPUT);
-  
-  Serial.println("target pos");
-}
-
-void loop() {
-
-  // set target position
-  //int target = 1200;
-  int target = 250*sin(prevT/1e6);
-
-  // PID constants
-  float kp = 1;
-  float kd = 0.025;
-  float ki = 0.0;
-
-  // time difference
-  long currT = micros();
-  float deltaT = ((float) (currT - prevT))/( 1.0e6 );
-  prevT = currT;
-
-  // Read the position in an atomic block to avoid a potential
-  // misread if the interrupt coincides with this code running
-  // see: https://www.arduino.cc/reference/en/language/variables/variable-scope-qualifiers/volatile/
-  int pos = 0; 
-  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    pos = posi;
-  }
-  
-  // error
-  int e = pos - target;
-
-  // derivative
-  float dedt = (e-eprev)/(deltaT);
-
-  // integral
-  eintegral = eintegral + e*deltaT;
-
-  // control signal
-  float u = kp*e + kd*dedt + ki*eintegral;
-
-  // motor power
-  float pwr = fabs(u);
-  if( pwr > 255 ){
-    pwr = 255;
-  }
-
-  // motor direction
-  int dir = 1;
-  if(u<0){
-    dir = -1;
-  }
-
-  // signal the motor
-  setMotor(dir,pwr,PWM,IN1,IN2);
+1- Download virtual box
+2 - Download Ubuntu 20
+3- click "new" in virtual box
+4 - Write Ubuntu
+5 - Choose Ubuntu files
+6- Terminate for the ros and write these instructions:
 
 
-  // store previous error
-  eprev = e;
+sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
 
-  Serial.print(target);
-  Serial.print(" ");
-  Serial.print(pos);
-  Serial.println();
-}
+sudo apt install curl
 
-void setMotor(int dir, int pwmVal, int pwm, int in1, int in2){
-  analogWrite(pwm,pwmVal);
-  if(dir == 1){
-    digitalWrite(in1,HIGH);
-    digitalWrite(in2,LOW);
-  }
-  else if(dir == -1){
-    digitalWrite(in1,LOW);
-    digitalWrite(in2,HIGH);
-  }
-  else{
-    digitalWrite(in1,LOW);
-    digitalWrite(in2,LOW);
-  }  
-}
+curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
 
-void readEncoder(){
-  int b = digitalRead(ENCB);
-  if(b > 0){
-    posi++;
-  }
-  else{
-    posi--;
-  }
-}
+sudo apt-get update
 
-file:///C:/Users/noohg/Pictures/motorConnections%20(1).png
+sudo apt-get install ros-noetic-desktop-full
+
+echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
+
+source ~/.bashrc
+
+roscore
+
+file:
+file:///C:/Users/noohg/Downloads/Screenshot_%D9%A2%D9%A0%D9%A2%D9%A2%D9%A0%D9%A8%D9%A1%D9%A8-%D9%A1%D9%A7%D9%A5%D9%A9%D9%A2%D9%A0_Zoom.jpg
